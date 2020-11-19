@@ -44,23 +44,23 @@ clustering_fields_facebook = ['campaign_id', 'campaign_name']
 def exist_dataset_table(client, table_id, dataset_id, project_id, schema, clustering_fields=None):
 
     try:
-        dataset_ref = "{}.{}".format(project_id, dataset_id)
+        dataset_ref = f"{project_id}.{dataset_id}"
         client.get_dataset(dataset_ref)  # Make an API request.
 
     except NotFound:
-        dataset_ref = "{}.{}".format(project_id, dataset_id)
+        dataset_ref = f"{project_id}.{dataset_id}"
         dataset = bigquery.Dataset(dataset_ref)
-        dataset.location = "US"
+        dataset.location = "EU"
         dataset = client.create_dataset(dataset)  # Make an API request.
-        logger.info("Created dataset {}.{}".format(client.project, dataset.dataset_id))
+        logger.info(f"Created dataset {client.project}.{dataset.dataset_id}")
 
     try:
-        table_ref = "{}.{}.{}".format(project_id, dataset_id, table_id)
+        table_ref = f"{project_id}.{dataset_id}.{table_id}"
         client.get_table(table_ref)  # Make an API request.
 
     except NotFound:
 
-        table_ref = "{}.{}.{}".format(project_id, dataset_id, table_id)
+        table_ref = f"{project_id}.{dataset_id}.{table_id}"
 
         table = bigquery.Table(table_ref, schema=schema)
 
@@ -73,14 +73,14 @@ def exist_dataset_table(client, table_id, dataset_id, project_id, schema, cluste
             table.clustering_fields = clustering_fields
 
         table = client.create_table(table)  # Make an API request.
-        logger.info("Created table {}.{}.{}".format(table.project, table.dataset_id, table.table_id))
+        logger.info(f"Created table {table.project}.{table.dataset_id}.{table.table_id}"
 
     return 'ok'
 
 
 def insert_rows_bq(client, table_id, dataset_id, project_id, data):
 
-    table_ref = "{}.{}.{}".format(project_id, dataset_id, table_id)
+    table_ref = f"{project_id}.{dataset_id}.{table_id}"
     table = client.get_table(table_ref)
 
     resp = client.insert_rows_json(
@@ -88,7 +88,7 @@ def insert_rows_bq(client, table_id, dataset_id, project_id, data):
         table = table_ref,
     )
 
-    logger.info("Success uploaded to table {}".format(table.table_id))
+    logger.info(f"Success uploaded to table {table.table_id}")
 
 
 def get_facebook_data(event, context):
@@ -107,7 +107,7 @@ def get_facebook_data(event, context):
         dataset_id = event['attributes']['dataset_id']
         project_id = event['attributes']['project_id']
 
-        api_key = event['attributes']['api_key']
+        api_key = event['attributes']['api_key'] #TODO Use secrets manager
         from_currency = event['attributes']['from_currency']
         to_currency = event['attributes']['to_currency']
         source = from_currency+to_currency
@@ -150,10 +150,10 @@ def get_facebook_data(event, context):
         dataset_id = event['attributes']['dataset_id']
         project_id = event['attributes']['project_id']
 
-        app_id = event['attributes']['app_id']
-        app_secret = event['attributes']['app_secret']
-        access_token = event['attributes']['access_token']
-        account_id = event['attributes']['account_id']
+        app_id = event['attributes']['app_id'] #TODOD Add Secrets API
+        app_secret = event['attributes']['app_secret'] #TODO Add Secrets API
+        access_token = event['attributes']['access_token'] #TODO Add Secrets API
+        account_id = event['attributes']['account_id'] #TODO Add Secrets API
 
         try:
             FacebookAdsApi.init(app_id, app_secret, access_token)
