@@ -84,8 +84,8 @@ def exist_dataset_table(client, table_id, dataset_id, project_id, schema, cluste
             table.clustering_fields = clustering_fields
 
         table = client.create_table(table)  # Make an API request.
-        logger.info(f"Created table {table.project}.{table.dataset_id}.{table.table_id}"
-
+        logger.info(f"Created table {table.project}.{table.dataset_id}.{table.table_id}")
+        
     return 'ok'
 
 
