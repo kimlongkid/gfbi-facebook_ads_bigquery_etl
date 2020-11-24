@@ -1,5 +1,6 @@
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
+from google.cloud import secretmanager_v1beta1 as secretmanager
 from datetime import datetime, date, timedelta
 import requests
 import logging
@@ -40,6 +41,16 @@ schema_facebook_stat = [
 ]
 
 clustering_fields_facebook = ['campaign_id', 'campaign_name']
+
+def get_secret(secret_id):
+    # Create the Secret Manager client.
+    client = secretmanager.SecretManagerServiceClient()
+    # Build the resource name of the secret version.
+    name = client.secret_version_path('gapfish-bi', secret_id, "latest")
+    # Access the secret version.
+    response = client.access_secret_version(name)
+    payload = response.payload.data.decode('UTF-8')
+    return payload
 
 def exist_dataset_table(client, table_id, dataset_id, project_id, schema, clustering_fields=None):
 
@@ -107,7 +118,7 @@ def get_facebook_data(event, context):
         dataset_id = event['attributes']['dataset_id']
         project_id = event['attributes']['project_id']
 
-        api_key = event['attributes']['api_key'] #TODO Use secrets manager
+        api_key = get_secret("CURRENCYLAYER_API_KEY")
         from_currency = event['attributes']['from_currency']
         to_currency = event['attributes']['to_currency']
         source = from_currency+to_currency
@@ -150,10 +161,10 @@ def get_facebook_data(event, context):
         dataset_id = event['attributes']['dataset_id']
         project_id = event['attributes']['project_id']
 
-        app_id = event['attributes']['app_id'] #TODOD Add Secrets API
-        app_secret = event['attributes']['app_secret'] #TODO Add Secrets API
-        access_token = event['attributes']['access_token'] #TODO Add Secrets API
-        account_id = event['attributes']['account_id'] #TODO Add Secrets API
+        app_id = get_secret("FACEBOOK_APP_ID")
+        app_secret = get_secret("FACEBOOK_APP_SECRET")
+        access_token = get_secret("FACEBOOK_ACCESS_TOKEN")
+        account_id = event['attributes']['fb_account_id']
 
         try:
             FacebookAdsApi.init(app_id, app_secret, access_token)
