@@ -1,4 +1,5 @@
 datetime
+google-loud-secret-manager
 google-cloud-logging
 google-cloud-bigquery
 facebook_business
