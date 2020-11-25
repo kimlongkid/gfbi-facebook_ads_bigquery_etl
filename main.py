@@ -1,16 +1,17 @@
-from google.cloud import bigquery
-from google.cloud.exceptions import NotFound
-from google.cloud import secretmanager_v1beta1 as secretmanager
-from datetime import datetime, date, timedelta
-import requests
-import logging
-import json
 import base64
-from facebook_business.api import FacebookAdsApi
+import json
+import logging
+from datetime import date, datetime, timedelta
+import requests
 from facebook_business.adobjects.adaccount import AdAccount
 from facebook_business.adobjects.adaccountuser import AdAccountUser
 from facebook_business.adobjects.adsinsights import AdsInsights
 from facebook_business.adobjects.campaign import Campaign
+from facebook_business.api import FacebookAdsApi
+from google.cloud import bigquery
+#from google.cloud import secretmanager as secretmanager
+from google.cloud import secretmanager_v1beta1 as secretmanager
+from google.cloud.exceptions import NotFound
 
 logger = logging.getLogger()
 
@@ -42,13 +43,13 @@ schema_facebook_stat = [
 
 clustering_fields_facebook = ['campaign_id', 'campaign_name']
 
-def get_secret(secret_id):
+def get_secret(project_id, secret_id):
     # Create the Secret Manager client.
     client = secretmanager.SecretManagerServiceClient()
     # Build the resource name of the secret version.
-    name = client.secret_version_path('gapfish-bi', secret_id, "latest")
+    name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
     # Access the secret version.
-    response = client.access_secret_version(name)
+    response = client.access_secret_version(request={"name": name})
     payload = response.payload.data.decode('UTF-8')
     return payload
 
@@ -85,7 +86,7 @@ def exist_dataset_table(client, table_id, dataset_id, project_id, schema, cluste
 
         table = client.create_table(table)  # Make an API request.
         logger.info(f"Created table {table.project}.{table.dataset_id}.{table.table_id}")
-        
+
     return 'ok'
 
 
@@ -103,8 +104,11 @@ def insert_rows_bq(client, table_id, dataset_id, project_id, data):
 
 
 def get_facebook_data(event, context):
+    try:
+        pubsub_message = base64.b64decode(event['data']).decode('utf-8')
+    except:
+        pubsub_message = event['data'].decode('utf-8')
 
-    pubsub_message = base64.b64decode(event['data']).decode('utf-8')
     bigquery_client = bigquery.Client()
 
     if 'date' in event['attributes']:
@@ -118,7 +122,7 @@ def get_facebook_data(event, context):
         dataset_id = event['attributes']['dataset_id']
         project_id = event['attributes']['project_id']
 
-        api_key = get_secret("CURRENCYLAYER_API_KEY")
+        api_key = get_secret(project_id, "CURRENCYLAYER_API_KEY")
         from_currency = event['attributes']['from_currency']
         to_currency = event['attributes']['to_currency']
         source = from_currency+to_currency
@@ -161,9 +165,9 @@ def get_facebook_data(event, context):
         dataset_id = event['attributes']['dataset_id']
         project_id = event['attributes']['project_id']
 
-        app_id = get_secret("FACEBOOK_APP_ID")
-        app_secret = get_secret("FACEBOOK_APP_SECRET")
-        access_token = get_secret("FACEBOOK_ACCESS_TOKEN")
+        app_id = get_secret(project_id, "FACEBOOK_APP_ID")
+        app_secret = get_secret(project_id, "FACEBOOK_APP_SECRET")
+        access_token = get_secret(project_id, "FACEBOOK_ACCESS_TOKEN")
         account_id = event['attributes']['fb_account_id']
 
         try:
@@ -232,3 +236,18 @@ def get_facebook_data(event, context):
             insert_rows_bq(bigquery_client, table_id, dataset_id, project_id, fb_source)
 
             return 'ok'
+
+# DEBUG FUNCTION to test locally
+if __name__ == '__main__':
+    # Main function for debug code
+    message = {
+        "data": b"get_facebook",
+        "attributes": { "project_id": "gapfish-bi",
+                      "dataset_id": "fb_data",
+                      "table_id":   "fb_test",
+                      "fb_account_id": "207189320221924"
+                        }
+    }
+
+    context = None
+    get_facebook_data(message, context)
