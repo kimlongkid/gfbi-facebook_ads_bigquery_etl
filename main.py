@@ -236,18 +236,3 @@ def get_facebook_data(event, context):
             insert_rows_bq(bigquery_client, table_id, dataset_id, project_id, fb_source)
 
             return 'ok'
-
-# DEBUG FUNCTION to test locally
-if __name__ == '__main__':
-    # Main function for debug code
-    message = {
-        "data": b"get_facebook",
-        "attributes": { "project_id": "gapfish-bi",
-                      "dataset_id": "fb_data",
-                      "table_id":   "fb_test",
-                      "fb_account_id": "207189320221924"
-                        }
-    }
-
-    context = None
-    get_facebook_data(message, context)
