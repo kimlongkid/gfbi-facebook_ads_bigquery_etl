@@ -168,9 +168,7 @@ def get_facebook_data(attributes, since, until, bigquery_client):
                             })
 
         if exist_dataset_table(bigquery_client, table_id, dataset_id, project_id, schema_facebook_stat, clustering_fields_facebook) == 'ok':
-
             insert_rows_bq(bigquery_client, table_id, dataset_id, project_id, fb_source)
-
             return 'ok'
 
 
@@ -206,9 +204,9 @@ if __name__ == '__main__':
         "project_id": "gapfish-bi",
         "dataset_id": "fb_data",
         "table_id": "fb_test_data",
-        "fb_account_id": "509064229474686",
+        "fb_account_id": "207189320221924",
         "since": "2020-01-01",
-        "until": "2020-02-01"
+        "until": "2020-12-01"
     }
     """
     attributes = json.loads(jstring)
