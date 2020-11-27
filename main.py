@@ -128,8 +128,8 @@ def get_facebook_data(attributes, since, until, bigquery_client):
             ], params={
                 'level': 'ad',
                 'time_range': {
-                    'since': since.strftime("%Y-%m-%d"),
-                    'until': until.strftime("%Y-%m-%d")
+                    'since': since,
+                    'until': until
                 },'time_increment': 1
             })
 
@@ -187,14 +187,33 @@ def process_request(event, context):
     bigquery_client = bigquery.Client()
 
     if 'since' in attributes:
-        since = attributes['since'].strftime('%Y-%m-%d')
+        since = attributes['since']
     else:
-        since = date.today() - timedelta(1)
+        since = (date.today() - timedelta(1)).strftime("%Y-%m-%d")
     if 'until' in attributes:
-        until = attributes['until'].strftime('%Y-%m-%d')
+        until = attributes['until']
     else:
-        until = date.today() - timedelta(1)
+        until = (date.today() - timedelta(1)).strftime("%Y-%m-%d")
 
     get_facebook_data(attributes, since, until, bigquery_client)
 
-    
+#DEBUG Function
+if __name__ == '__main__':
+    debug = True  # deactivates Task queue and activates dry run
+    # Main function for debug code
+    jstring = """
+    {
+        "project_id": "gapfish-bi",
+        "dataset_id": "fb_data",
+        "table_id": "fb_test_data",
+        "fb_account_id": "509064229474686",
+        "since": "2020-01-01",
+        "until": "2020-02-01"
+    }
+    """
+    attributes = json.loads(jstring)
+    since = attributes['since']
+    until = attributes['until']
+    bigquery_client = bigquery.Client()
+
+    get_facebook_data(attributes, since, until, bigquery_client)
