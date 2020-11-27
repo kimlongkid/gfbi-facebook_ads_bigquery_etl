@@ -9,17 +9,14 @@ from facebook_business.adobjects.adsinsights import AdsInsights
 from facebook_business.adobjects.campaign import Campaign
 from facebook_business.api import FacebookAdsApi
 from google.cloud import bigquery
-#from google.cloud import secretmanager as secretmanager
 from google.cloud import secretmanager_v1beta1 as secretmanager
 from google.cloud.exceptions import NotFound
 
 logger = logging.getLogger()
+#TODO:
+# Change interface to http requests ? use JSON Strings for now
+# Improve logging for errors and exceptions - Enable cloud logging
 
-schema_exchange_rate = [
-    bigquery.SchemaField("date", "DATE", mode="REQUIRED"),
-    bigquery.SchemaField("currencies", "STRING", mode="REQUIRED"),
-    bigquery.SchemaField("rate", "FLOAT", mode="REQUIRED")
-]
 
 schema_facebook_stat = [
     bigquery.SchemaField("date", "DATE", mode="REQUIRED"),
@@ -94,81 +91,22 @@ def insert_rows_bq(client, table_id, dataset_id, project_id, data):
 
     table_ref = f"{project_id}.{dataset_id}.{table_id}"
     table = client.get_table(table_ref)
-
-    resp = client.insert_rows_json(
-        json_rows = data,
-        table = table_ref,
-    )
-
-    logger.info(f"Success uploaded to table {table.table_id}")
-
-
-def get_facebook_data(event, context):
-    try:
-        pubsub_message = base64.b64decode(event['data']).decode('utf-8')
-    except:
-        pubsub_message = event['data'].decode('utf-8')
-
-    bigquery_client = bigquery.Client()
-
-    if 'date' in event['attributes']:
-        yesterday = event['attributes']['date'].strftime('%Y-%m-%d')
-    else:
-        yesterday = date.today() - timedelta(1)
-
-    if pubsub_message == 'get_currency':
-
-        table_id = event['attributes']['table_id']
-        dataset_id = event['attributes']['dataset_id']
-        project_id = event['attributes']['project_id']
-
-        api_key = get_secret(project_id, "CURRENCYLAYER_API_KEY")
-        from_currency = event['attributes']['from_currency']
-        to_currency = event['attributes']['to_currency']
-        source = from_currency+to_currency
-
-        cur_source = []
-
-        params = {'access_key': api_key,
-                   'currencies': to_currency,
-                   'source': from_currency,
-                   'date': yesterday.strftime("%Y-%m-%d")
-                  }
-
-        url = 'http://api.currencylayer.com/historical'
+    if data:
+        resp = client.insert_rows_json(
+            json_rows = data,
+            table = table_ref,
+        )
+        logger.info(f"Success uploaded to table {table.table_id}")
 
 
-        try:
-            r = requests.get(url, params=params)
-        except requests.exceptions.RequestException as e:
-            logger.error('request to currencylayer error: {}').format(e)
-            return e
-
-        if r.json()["success"] is True:
-
-            exist_dataset_table(bigquery_client, table_id, dataset_id, project_id, schema_exchange_rate)
-
-            cur_source.append({'date': yesterday.strftime("%Y-%m-%d"),
-                               'currencies' : source,
-                               'rate' : r.json()['quotes'][source]
-            })
-
-            insert_rows_bq(bigquery_client, table_id, dataset_id, project_id, cur_source)
-        else:
-            logger.error('request to currencylayer error: {}').format(r.json()['error']['info'])
-
-        return 'ok'
-
-    elif pubsub_message == 'get_facebook':
-
-        table_id = event['attributes']['table_id']
-        dataset_id = event['attributes']['dataset_id']
-        project_id = event['attributes']['project_id']
-
+def get_facebook_data(attributes, since, until, bigquery_client):
+        table_id = attributes['table_id']
+        dataset_id = attributes['dataset_id']
+        project_id = attributes['project_id']
         app_id = get_secret(project_id, "FACEBOOK_APP_ID")
         app_secret = get_secret(project_id, "FACEBOOK_APP_SECRET")
         access_token = get_secret(project_id, "FACEBOOK_ACCESS_TOKEN")
-        account_id = event['attributes']['fb_account_id']
+        account_id = attributes['fb_account_id']
 
         try:
             FacebookAdsApi.init(app_id, app_secret, access_token)
@@ -190,8 +128,8 @@ def get_facebook_data(event, context):
             ], params={
                 'level': 'ad',
                 'time_range': {
-                    'since':  yesterday.strftime("%Y-%m-%d"),
-                    'until': yesterday.strftime("%Y-%m-%d")
+                    'since': since.strftime("%Y-%m-%d"),
+                    'until': until.strftime("%Y-%m-%d")
                 },'time_increment': 1
             })
 
@@ -215,7 +153,6 @@ def get_facebook_data(event, context):
                 for i, value in enumerate(item['conversions']):
                     conversions.append({'action_type' : value['action_type'], 'value': value['value']})
 
-
             fb_source.append({'date': item['date_start'],
                                'ad_id' : item['ad_id'],
                                'ad_name' : item['ad_name'],
@@ -230,9 +167,32 @@ def get_facebook_data(event, context):
                                'actions' : actions
                             })
 
-
         if exist_dataset_table(bigquery_client, table_id, dataset_id, project_id, schema_facebook_stat, clustering_fields_facebook) == 'ok':
 
             insert_rows_bq(bigquery_client, table_id, dataset_id, project_id, fb_source)
 
             return 'ok'
+
+
+def process_request(event, context):
+    try:
+        pubsub_message = base64.b64decode(event['data']).decode('utf-8')
+    except:
+        pubsub_message = event['data'].decode('utf-8')
+
+    attributes = json.loads(pubsub_message)
+
+    logger.info(attributes)
+
+    bigquery_client = bigquery.Client()
+
+    if 'since' in attributes:
+        since = attributes['since'].strftime('%Y-%m-%d')
+    else:
+        since = date.today() - timedelta(1)
+    if 'until' in attributes:
+        until = attributes['until'].strftime('%Y-%m-%d')
+    else:
+        until = date.today() - timedelta(1)
+
+    get_facebook_data(attributes, since, until, bigquery_client)

@@ -1,7 +1,6 @@
 # Facebook ads to google bigQuery ETL
 
-ETL based on cloud function (google cloud) that retrieves data from the Facebook Insight API:
-
+_ETL based on cloud function (google cloud) that retrieves data from the Facebook Insight API:_
 AdsInsights.Field.account_id,
 AdsInsights.Field.campaign_id,
 AdsInsights.Field.campaign_name,
@@ -15,64 +14,46 @@ AdsInsights.Field.clicks,
 AdsInsights.Field.actions,
 AdsInsights.Field.conversions
 
-And Currency exchange rate from currencylayer.com.
-
 ETL uploads this data to Google Bigquery every day.
-
-
 
 ## Getting Started
 
 These instructions will get you a copy of the project up and running on your google cloud project for development and testing purposes.
 
+- Secrets are loaded using the google cloud secrets API
+  FACEBOOK_APP_ID
+  FACEBOOK_APP_SECRET
+  FACEBOOK_APP_TOKEN
 
 ### Installing
 
-[Tutorial](https://medium.com/@snegir/writing-your-data-connector-from-facebook-ads-to-google-bigquery-670caeff8262?sk=ddd9d903a488864428b51f3e00423a40)
-
-A step by step series of examples that tell you how to get a development env running
-
-Create new pubsub topic:
-
-```bash
-gcloud pubsub topics create facebook_run
-```
-
-Publish cloud function:
-
-```bash
-gcloud functions deploy get_facebook_data --runtime python37 --trigger-topic facebook_run --timeout=540 --memory=1024MB
-```
-
 Create scheduler for facebook ads ETL:
 
-PROJECT_ID = your google cloud PROJECT_ID
-DATASET_ID = for example "facebook"
-TABLE_ID = for example "fb_stat"
-ACCOUNT_ID = your facebook account id without act_
+- Parameters can be passed as JSON String
+  project*id: your google cloud project_id
+  dataset_id: for example "facebook"
+  table_id: for example "fb_stat"
+  fb_account_id: your facebook account id without act*
+  since: start date - defaults to yesterday
+  until: end date - defaults to yesterday
 
-APP_ID, APP_SECRET, APP_TOKEN = from apps developers.facebook.com
+#### Example
 
-```bash
-gcloud beta scheduler jobs create pubsub facebook --time-zone "Europe/Kiev" --schedule "0 5 * * *" --topic facebook_run --message-body "get_facebook" --attributes project_id=PROJECT_ID,dataset_id=DATASET_ID,table_id=TABLE_ID,account_id=ACCOUNT_ID,app_id=APP_ID,app_secret=APP_SECRET,access_token=ACCESS_TOKEN
+```JSON
+{
+    "project_id": "my_project",
+    "dataset_id": "fb_data",
+    "table_id": "ac_name",
+    "fb_account_id": "number",
+    "since": "2020-01-01",
+    "until": "2020-02-01"
+}
 ```
-
-
-Create scheduler for currency converter:
-
-```bash
-gcloud beta scheduler jobs create pubsub converter --time-zone "Europe/Kiev" --schedule "0 5 * * *" --topic facebook_run --message-body "get_currency" --attributes project_id=PROJECT_ID,dataset_id=DATASET_ID,table_id=TABLE_ID,api_key=API_KEY,from_currency=USD,to_currency=UAH
-```
-
 
 ## Authors
 
-* **Andrey Osipov**
-
-* [web](https://web-analytics.me/)
-* [facebook](https://www.facebook.com/andrey.osipov)
-* [telegram group](https://t.me/firebase_app_web_bigquery)
-
+- **Andrey Osipov** Original Author
+- Philipp Rosenbeck
 
 ## License
 
