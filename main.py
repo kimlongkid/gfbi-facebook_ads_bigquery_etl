@@ -196,3 +196,5 @@ def process_request(event, context):
         until = date.today() - timedelta(1)
 
     get_facebook_data(attributes, since, until, bigquery_client)
+
+    
