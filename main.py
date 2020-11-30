@@ -2,7 +2,6 @@ import base64
 import json
 import logging
 from datetime import date, datetime, timedelta
-import requests
 from facebook_business.adobjects.adaccount import AdAccount
 from facebook_business.adobjects.adaccountuser import AdAccountUser
 from facebook_business.adobjects.adsinsights import AdsInsights
@@ -196,10 +195,9 @@ def process_request(event, context):
     else:
         until = (date.today() - timedelta(1)).strftime("%Y-%m-%d")
 
-    try:
-        get_facebook_data(attributes, since, until, bigquery_client)
+    get_facebook_data(attributes, since, until, bigquery_client)
 
-    return 200
+    return f"Successfully run for {attributes}", 200
 
 #DEBUG Function
 if __name__ == '__main__':
@@ -217,4 +215,4 @@ if __name__ == '__main__':
     """
     test_event = {'data': base64.b64encode(jstring.encode())}
 
-    process_request(test_event)
+    process_request(test_event, None)
