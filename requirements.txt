@@ -2,4 +2,5 @@ datetime
 google-cloud-secret-manager
 google-cloud-logging
 google-cloud-bigquery
+google-cloud-logging
 facebook_business
