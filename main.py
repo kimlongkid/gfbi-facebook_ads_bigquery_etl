@@ -198,21 +198,3 @@ def process_request(event, context):
     get_facebook_data(attributes, since, until, bigquery_client)
 
     return f"Successfully run for {attributes}", 200
-
-#DEBUG Function
-if __name__ == '__main__':
-    debug = True  # deactivates Task queue and activates dry run
-    # Main function for debug code
-    jstring = """
-    {
-        "project_id": "gapfish-bi",
-        "dataset_id": "fb_data",
-        "table_id": "fb_test_data",
-        "fb_account_id": "207189320221924",
-        "since": "2020-01-01",
-        "until": "2021-01-01"
-    }
-    """
-    test_event = {'data': base64.b64encode(jstring.encode())}
-
-    process_request(test_event, None)
