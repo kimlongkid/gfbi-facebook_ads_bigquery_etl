@@ -108,9 +108,9 @@ def get_facebook_data(attributes, since, until, bigquery_client):
         table_id = attributes['table_id']
         dataset_id = attributes['dataset_id']
         project_id = attributes['project_id']
-        app_id = get_secret(project_id, "FACEBOOK_APP_ID")
-        app_secret = get_secret(project_id, "FACEBOOK_APP_SECRET")
-        access_token = get_secret(project_id, "FACEBOOK_ACCESS_TOKEN")
+        app_id = attributes['fb_app_id']
+        app_secret = attributes['fb_app_secret']
+        access_token = attributes['fb_access_token']
         account_id = attributes['fb_account_id']
 
         try:
@@ -179,10 +179,14 @@ def get_facebook_data(attributes, since, until, bigquery_client):
 
 def process_request(event, context):
 
-    pubsub_message = base64.b64decode(event['data']).decode('utf-8')
-    attributes = json.loads(pubsub_message)
+    logger.info(event)
 
-    logger.info(attributes)
+    # pubsub_message = base64.b64decode(event['attributes']).decode('utf-8')
+    # logger.info(pubsub_message)
+    # attributes = json.loads(pubsub_message)
+    # logger.info(attributes)
+
+    attributes = event['attributes']
 
     bigquery_client = bigquery.Client()
 
