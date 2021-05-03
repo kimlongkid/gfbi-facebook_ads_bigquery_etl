@@ -24,21 +24,23 @@ logger = logging.getLogger()
 
 schema_facebook_stat = [
     bigquery.SchemaField("date", "DATE", mode="REQUIRED"),
-    bigquery.SchemaField("ad_id", "STRING", mode="REQUIRED"),
-    bigquery.SchemaField("ad_name", "STRING", mode="REQUIRED"),
-    bigquery.SchemaField("adset_id", "STRING", mode="REQUIRED"),
-    bigquery.SchemaField("adset_name", "STRING", mode="REQUIRED"),
-    bigquery.SchemaField("campaign_id", "STRING", mode="REQUIRED"),
     bigquery.SchemaField("campaign_name", "STRING", mode="REQUIRED"),
-    bigquery.SchemaField("clicks", "INTEGER", mode="REQUIRED"),
-    bigquery.SchemaField("impressions", "INTEGER", mode="REQUIRED"),
+    bigquery.SchemaField("campaign_id", "STRING", mode="REQUIRED"),
+    bigquery.SchemaField("adset_name", "STRING", mode="REQUIRED"),
+    bigquery.SchemaField("adset_id", "STRING", mode="REQUIRED"),
+    bigquery.SchemaField("ad_name", "STRING", mode="REQUIRED"),
+    bigquery.SchemaField("ad_id", "STRING", mode="REQUIRED"),
     bigquery.SchemaField("spend", "FLOAT", mode="REQUIRED"),
-    bigquery.SchemaField('conversions', 'RECORD', mode='REPEATED',
-        fields=(bigquery.SchemaField('action_type', 'STRING'),
-                bigquery.SchemaField('value', 'STRING'))),
-    bigquery.SchemaField('actions', 'RECORD', mode='REPEATED',
-        fields=(bigquery.SchemaField('action_type', 'STRING'),
-                bigquery.SchemaField('value', 'STRING')))
+    bigquery.SchemaField("impressions", "INTEGER", mode="REQUIRED"),
+    bigquery.SchemaField("clicks", "INTEGER", mode="REQUIRED"),
+    bigquery.SchemaField("frequency", "STRING", mode="REQUIRED"),
+    bigquery.SchemaField("reach", "STRING", mode="REQUIRED")
+    # bigquery.SchemaField('conversions', 'RECORD', mode='REPEATED',
+        # fields=(bigquery.SchemaField('action_type', 'STRING'),
+        #         bigquery.SchemaField('value', 'STRING'))),
+    # bigquery.SchemaField('actions', 'RECORD', mode='REPEATED',
+    #     fields=(bigquery.SchemaField('action_type', 'STRING'),
+    #             bigquery.SchemaField('value', 'STRING')))
 
 ]
 
@@ -64,7 +66,7 @@ def exist_dataset_table(client, table_id, dataset_id, project_id, schema, cluste
     except NotFound:
         dataset_ref = f"{project_id}.{dataset_id}"
         dataset = bigquery.Dataset(dataset_ref)
-        dataset.location = "EU"
+        dataset.location = "US"
         dataset = client.create_dataset(dataset)  # Make an API request.
         logger.info(f"Created dataset {client.project}.{dataset.dataset_id}")
 
@@ -118,9 +120,9 @@ def get_facebook_data(attributes, since, until, bigquery_client):
 
             account = AdAccount('act_'+str(account_id))
             insights = account.get_insights(fields=[
-                    AdsInsights.Field.account_id,
-                    AdsInsights.Field.campaign_id,
+                    # AdsInsights.Field.account_id,
                     AdsInsights.Field.campaign_name,
+                    AdsInsights.Field.campaign_id,
                     AdsInsights.Field.adset_name,
                     AdsInsights.Field.adset_id,
                     AdsInsights.Field.ad_name,
@@ -128,9 +130,12 @@ def get_facebook_data(attributes, since, until, bigquery_client):
                     AdsInsights.Field.spend,
                     AdsInsights.Field.impressions,
                     AdsInsights.Field.clicks,
-                    AdsInsights.Field.actions,
-                    AdsInsights.Field.conversions
+                    AdsInsights.Field.frequency,
+                    AdsInsights.Field.reach
+                    # AdsInsights.Field.actions,
+                    # AdsInsights.Field.conversions
             ], params={
+                'access_token': access_token,
                 'level': 'ad',
                 'time_range': {
                     'since': since,
@@ -159,17 +164,19 @@ def get_facebook_data(attributes, since, until, bigquery_client):
                     conversions.append({'action_type' : value['action_type'], 'value': value['value']})
 
             fb_source.append({'date': item['date_start'],
-                               'ad_id' : item['ad_id'],
-                               'ad_name' : item['ad_name'],
-                               'adset_id' : item['adset_id'],
-                               'adset_name' : item['adset_name'],
-                               'campaign_id' : item['campaign_id'],
                                'campaign_name' : item['campaign_name'],
-                               'clicks' : item['clicks'],
+                               'campaign_id' : item['campaign_id'],
+                               'adset_name' : item['adset_name'],
+                               'adset_id' : item['adset_id'],
+                               'ad_name' : item['ad_name'],
+                               'ad_id' : item['ad_id'],
+                               'spend' : item['spend'],
                                'impressions' : item['impressions'],
-                               'spend' : item['spend'] ,
-                               'conversions' : conversions,
-                               'actions' : actions
+                               'clicks' : item['clicks'],
+                               'frequency' : item['frequency'],
+                               'reach' : item['reach'],
+                            #    'conversions' : conversions,
+                            #    'actions' : actions
                             })
         assert fb_source, f"No data retourced for {attributes}"
         if exist_dataset_table(bigquery_client, table_id, dataset_id, project_id, schema_facebook_stat, clustering_fields_facebook) == 'ok':
