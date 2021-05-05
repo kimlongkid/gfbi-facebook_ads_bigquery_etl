@@ -183,6 +183,61 @@ def get_facebook_data(attributes, since, until, bigquery_client):
             insert_rows_bq(bigquery_client, table_id, dataset_id, project_id, fb_source)
             return 'ok'
 
+def remove_duplicates(attributes, bigquery_client):
+    # move deduped data from facebook_stat table to facebook_stat_deduped table
+    table_id = attributes['table_id']
+    dataset_id = attributes['dataset_id']
+    project_id = attributes['project_id']
+    
+    table_name = project_id + "." + dataset_id + "." + table_id
+    table_deduped_name = project_id + "." + dataset_id + "." + table_id + "_deduped"
+
+    query = """
+        CREATE OR REPLACE TABLE
+            `%s` AS
+        SELECT
+            date,
+            campaign_id,
+            campaign_name,
+            adset_name,
+            adset_id,
+            ad_name,
+            ad_id,
+            MAX(spend) AS spend,
+            MAX(impressions) AS impressions,
+            MAX(clicks) AS clicks,
+            MAX(frequency) AS frequency,
+            MAX(reach) AS reach
+        FROM
+            `%s`
+        GROUP BY
+            date,
+            campaign_id,
+            campaign_name,
+            adset_name,
+            adset_id,
+            ad_name,
+            ad_id
+    """ %(table_deduped_name, table_name)
+
+    logger.info(query)
+    query_job = bigquery_client.query(query)  # Make an API request.
+
+def clear_old_records(attributes, bigquery_client):
+    # remove old record in facebook_stat table
+    table_id = attributes['table_id']
+    dataset_id = attributes['dataset_id']
+    project_id = attributes['project_id']
+    
+    table_name = project_id + "." + dataset_id + "." + table_id
+    query = """
+    DELETE 
+    FROM `%s` 
+    WHERE 
+        TIMESTAMP_DIFF(current_timestamp(), TIMESTAMP(date), DAY) >= 2
+    """ %(table_name)
+    logger.info(query)
+    query_job = bigquery_client.query(query)  # Make an API request.
 
 def process_request(event, context):
 
@@ -207,5 +262,9 @@ def process_request(event, context):
         until = (date.today() - timedelta(1)).strftime("%Y-%m-%d")
 
     get_facebook_data(attributes, since, until, bigquery_client)
+
+    remove_duplicates(attributes, bigquery_client)
+
+    # clear_old_records(attributes, bigquery_client)
 
     return f"Successfully run for {attributes}", 200
